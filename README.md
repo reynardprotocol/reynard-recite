@@ -1,23 +1,87 @@
-🚀 版本更新说明：多维打卡矩阵与 UI 深度重构 (v2.x)
-✨ 新特性 (Features)
-打卡矩阵升维 (Multi-dimensional Matrix)：打破原有的一维无限拉长结构，升级为“多分组独立表格上下堆叠”展示。支持同时创建完全独立的“M系列进度”、“U单元进度”等多个打卡模块。
+# 📖 背诵沙盘 (Reynard Recite)
 
-任务深度解耦 (Deep Task Decoupling)：学习任务不再属于全局班级，而是与具体的“列分组”深度绑定。不同的表格现在可以拥有完全不同且互不干扰的任务列表。
+> 一款面向教师的课堂背诵管理工具。通过班级沙盘、多维打卡矩阵和数据可视化，帮助教师高效追踪学生的背诵进度。
 
-数据无损迁移 (Seamless Data Migration)：在底层增加了数据中转与保护机制，老版本的“单表数据”与星星记录会自动平滑迁移至名为“默认进度”的分组中，实现零数据丢失更新。
+🌐 **在线访问**：[https://reynardprotocol.github.io/reynard-recite/](https://reynardprotocol.github.io/reynard-recite/)
 
-💄 界面与交互优化 (UI/UX)
-首列冻结与独立滚动 (Sticky Fixed Column)：彻底解决多列数据导致的排版灾难。现在每个表格拥有独立的横向滚动条，且最左侧的“学习任务名称”列被永久冻结在屏幕左侧，右滑查看进度时不再迷失。
+---
 
-防折行刚性排版 (No-Wrap Layout)：引入强制不换行与首列 160px 刚性宽度设定，彻底消灭了因屏幕空间不足导致的“竖排文字”现象。
+## ✨ 当前功能一览
 
-控制台面板精简 (Settings Panel Redesign)：重构了“打卡设置”的弹出面板。废除了底部臃肿的全局任务栏，将“添加列”和“添加任务”按钮直接整合进了对应的分组卡片中，所见即所得。
+### 🏫 班级沙盘
+- 班级大厅：创建、重命名、删除班级，查看所有班级卡片
+- 沙盘视图：木纹风格班级座位图，将学生拖入小组桌位
+- 小组管理：自定义小组名称与座位数量
+- 学生管理：手动添加、TXT 批量导入、拖拽排座、设置组长
 
-专属任务入口收纳 (UI De-cluttering)：移除了学生打卡面板底部巨大且冗余的“+ 新增专属任务”按钮，将其设计成了极简的徽章样式，优雅地融合进了每张表格的左上角表头中。
+### 📊 多维打卡矩阵
+- 支持在同一班级内创建多个独立打卡分组（如"M系列"、"U单元"）
+- 每个分组有独立的列标（横向进度）和任务（纵向学习项）
+- 打卡状态：空 → 半星 ☆ → 满星 ★ → 完成 ✔
+- 粒子特效：打卡时触发彩色粒子动画
+- 专属任务：每位学生可追加个人附加任务
 
-♻️ 代码重构与清理 (Refactor & Cleanup)
-彻底清理了 index.html 中废弃的单维任务渲染 DOM 节点。
+### 📋 班级设置
+- 新建大分组，添加列标和学习任务
+- **跨班级模板同步**：将其他班级的分组与任务配置一键深拷贝到当前班级
 
-废弃并重写了 getGlobalCols 等旧版一维 API，替换为 getColGroups、getClassTasks、getStudentCustomTasks 等支持二维矩阵的数据流中转函数。
+### 🏆 排行榜
+- 学生个人积分排行
+- 小组总积分排行
 
-精简并合并了冗余的 render 渲染逻辑。
+---
+
+## 🛠️ 技术栈
+
+| 技术 | 用途 |
+|---|---|
+| Vite | 构建工具与开发服务器 |
+| 原生 ES6 JavaScript | 核心业务逻辑 |
+| Tailwind CSS v3 | 样式框架 |
+| LocalStorage | 本地数据持久化（无服务器） |
+| GitHub Actions | CI/CD 自动部署到 GitHub Pages |
+
+---
+
+## 🚀 本地运行
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+```
+
+---
+
+## 📁 项目结构
+
+```
+reynard-recite/
+├── index.html              # 页面骨架与所有 DOM 结构
+├── vite.config.js          # Vite 构建配置（含 GitHub Pages base 路径）
+├── src/
+│   ├── main.js             # 核心业务逻辑、渲染函数、事件处理
+│   ├── data.js             # LocalStorage 读写封装
+│   ├── utils.js            # 工具库（程序化 SVG 头像、粒子特效、星级视觉）
+│   └── style.css           # Tailwind 基础样式 + 自定义动画
+├── public/                 # 静态资源目录
+└── .github/workflows/
+    └── deploy.yml          # GitHub Actions 自动部署工作流
+```
+
+---
+
+## 🗺️ 后续规划
+
+查看 [Recitation-Sandbox-Memory.md](./Recitation-Sandbox-Memory.md) 了解详细规划与技术决策记录。
+
+---
+
+## 📄 许可
+
+MIT License
