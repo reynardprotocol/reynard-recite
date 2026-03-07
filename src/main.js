@@ -2,6 +2,85 @@ import './style.css';
 import { loadDataRaw, saveDataRaw } from './data.js';
 import { generateAvatarSVG, shootParticles, getStatusVisual } from './utils.js';
 
+// ==========================================
+// 自定义弹窗工具函数（替代被浏览器拦截的 prompt / confirm）
+// 为什么要这样做？
+// 浏览器出于安全策略，有时会静默阻止 window.prompt() / window.confirm()，
+// 导致函数直接返回 null，按钮点了像没反应一样。
+// 解决方案：用我们自己的 HTML 弹窗模拟这两个功能。
+// 这两个函数都返回 Promise（承诺对象），需要配合 await 使用。
+// 比喻：就像点菜后服务员会来告诉你结果，await 就是"等服务员回来"的动作。
+// ==========================================
+
+// [001] 自定义输入框（替代 prompt）
+// 用法：const val = await customPrompt("请输入名称：", "默认值");
+// 返回：用户输入的字符串，如果点取消则返回 null
+function customPrompt(message, defaultValue = '') {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('customPromptOverlay');
+        const msgEl = document.getElementById('customPromptMessage');
+        const inputEl = document.getElementById('customPromptInput');
+        const okBtn = document.getElementById('customPromptOk');
+        const cancelBtn = document.getElementById('customPromptCancel');
+
+        msgEl.textContent = message;
+        inputEl.value = defaultValue;
+        overlay.classList.remove('hidden');
+        // 自动聚焦到输入框，方便用户直接输入
+        setTimeout(() => inputEl.focus(), 50);
+
+        // 清理函数：关闭弹窗并移除事件监听，防止重复绑定
+        function cleanup(result) {
+            overlay.classList.add('hidden');
+            // removeEventListener 需要引用同一个函数对象，所以用具名函数
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            inputEl.removeEventListener('keydown', onKeydown);
+            resolve(result);
+        }
+
+        function onOk() { cleanup(inputEl.value.trim() || null); }
+        function onCancel() { cleanup(null); }
+        // 按 Enter 触发确认，按 Escape 触发取消，提升键盘操作体验
+        function onKeydown(e) {
+            if (e.key === 'Enter') onOk();
+            if (e.key === 'Escape') onCancel();
+        }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        inputEl.addEventListener('keydown', onKeydown);
+    });
+}
+
+// [002] 自定义确认框（替代 confirm）
+// 用法：const confirmed = await customConfirm("确定要删除吗？");
+// 返回：布尔值，true 表示用户点了确认，false 表示点了取消
+function customConfirm(message) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('customConfirmOverlay');
+        const msgEl = document.getElementById('customConfirmMessage');
+        const okBtn = document.getElementById('customConfirmOk');
+        const cancelBtn = document.getElementById('customConfirmCancel');
+
+        msgEl.textContent = message;
+        overlay.classList.remove('hidden');
+
+        function cleanup(result) {
+            overlay.classList.add('hidden');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(result);
+        }
+
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+    });
+}
+
 let appData = { version: "1.0", classes: [] };
 let currentClassId = null;
 let draggedStudentId = null;
@@ -11,7 +90,7 @@ let currentTab = 'personal';
 function loadData() { appData = loadDataRaw(); renderLobby(); }
 function saveData() { saveDataRaw(appData); }
 
-window.exportData = function() {
+window.exportData = function () {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
@@ -20,25 +99,25 @@ window.exportData = function() {
     dlAnchorElem.remove();
 };
 
-window.importData = function(event) {
+window.importData = function (event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const importedData = JSON.parse(e.target.result);
-            if (importedData && importedData.classes) { appData = importedData; saveData(); renderLobby(); alert('数据导入成功！'); } 
+            if (importedData && importedData.classes) { appData = importedData; saveData(); renderLobby(); alert('数据导入成功！'); }
             else { alert('数据格式不正确，缺少班级信息。'); }
         } catch (err) { alert('读取文件失败，请确保是合法的 JSON 文件。'); }
     };
     reader.readAsText(file);
-    event.target.value = ''; 
+    event.target.value = '';
 };
 
-window.switchView = function(viewName) {
+window.switchView = function (viewName) {
     const viewLobby = document.getElementById('view-lobby');
     const viewSandbox = document.getElementById('view-sandbox');
-    if (viewName === 'lobby') { viewLobby.classList.remove('hidden-view'); viewSandbox.classList.add('hidden-view'); currentClassId = null; renderLobby(); } 
+    if (viewName === 'lobby') { viewLobby.classList.remove('hidden-view'); viewSandbox.classList.add('hidden-view'); currentClassId = null; renderLobby(); }
     else if (viewName === 'sandbox') { viewLobby.classList.add('hidden-view'); viewSandbox.classList.remove('hidden-view'); }
 };
 
@@ -55,7 +134,7 @@ function renderLobby() {
         const stuCount = cls.students ? cls.students.length : 0;
         const classCard = document.createElement('div');
         classCard.className = 'card-hover bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between relative group min-h-[160px] cursor-pointer';
-        classCard.onclick = (e) => { if(e.target.closest('.action-btn')) return; enterClass(cls.id); };
+        classCard.onclick = (e) => { if (e.target.closest('.action-btn')) return; enterClass(cls.id); };
         classCard.innerHTML = `
             <div>
                 <div class="flex justify-between items-start mb-2">
@@ -72,20 +151,38 @@ function renderLobby() {
     });
 }
 
-function createClass() {
-    const name = prompt("请输入新班级名称：", "新班级");
-    if (name && name.trim() !== "") { appData.classes.push({ id: 'c_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5), name: name.trim(), groups: [], students: [] }); saveData(); renderLobby(); }
+async function createClass() {
+    const name = await customPrompt("请输入新班级名称：", "新班级");
+    if (name && name.trim() !== "") {
+        appData.classes.push({
+            id: 'c_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+            name: name.trim(),
+            groups: [],
+            students: [],
+            // [001] 深拷贝一套默认列分组给新班级。
+            // 为什么用深拷贝（structuredClone）？
+            // 就像复印一份合同，A班和B班各拿一份纸，
+            // A班在自己那份上改内容，B班的那份完全不受影响。
+            // 如果用浅拷贝（直接赋值或展开运算符 [...]），
+            // 两个班级实际上拿着「指向同一份合同的钥匙」，
+            // 一方修改，另一方也会看到变化——这就是「幽灵污染」。
+            colGroups: structuredClone([{ id: 'cg_default', name: '默认进度', cols: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'] }]),
+            groupTasks: {}
+        });
+        saveData();
+        renderLobby();
+    }
 }
-window.renameClass = function(id) {
+window.renameClass = async function (id) {
     const cls = appData.classes.find(c => c.id === id);
     if (!cls) return;
-    const newName = prompt("修改班级名称：", cls.name);
+    const newName = await customPrompt("修改班级名称：", cls.name);
     if (newName && newName.trim() !== "" && newName !== cls.name) { cls.name = newName.trim(); saveData(); renderLobby(); }
 };
-window.deleteClass = function(id) {
+window.deleteClass = async function (id) {
     const cls = appData.classes.find(c => c.id === id);
     if (!cls) return;
-    if (confirm(`⚠️ 警告：确定要删除【${cls.name}】吗？\n删除后该班级的所有学生和背诵数据将丢失且不可恢复！`)) { appData.classes = appData.classes.filter(c => c.id !== id); saveData(); renderLobby(); }
+    if (await customConfirm(`⚠️ 警告：确定要删除【${cls.name}】吗？\n删除后该班级的所有学生和背诵数据将丢失且不可恢复！`)) { appData.classes = appData.classes.filter(c => c.id !== id); saveData(); renderLobby(); }
 };
 function enterClass(id) { currentClassId = id; const cls = appData.classes.find(c => c.id === id); if (cls) { window.switchView('sandbox'); renderSandbox(); } }
 
@@ -147,8 +244,8 @@ function createStudentAvatar(stu) {
 
     let clickTimer = null;
     avatarContainer.onclick = (e) => {
-        if (draggedStudentId) return; 
-        if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; } 
+        if (draggedStudentId) return;
+        if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
         else { clickTimer = setTimeout(() => { openMatrix(stu.id); clickTimer = null; }, 250); }
     };
     avatarContainer.ondblclick = (e) => {
@@ -173,7 +270,7 @@ function createStudentAvatar(stu) {
 
 function handleDragStart(e, studentId) { draggedStudentId = studentId; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => e.target.classList.add('opacity-40'), 0); }
 function handleDragEnd(e) { e.target.classList.remove('opacity-40'); draggedStudentId = null; }
-window.handleDragOver = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+window.handleDragOver = function (e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
 
 function handleDropOnSeat(e, groupId, seatIndex) {
     e.preventDefault();
@@ -186,7 +283,7 @@ function handleDropOnSeat(e, groupId, seatIndex) {
     if (student) { student.groupId = groupId; student.seatIndex = seatIndex; saveData(); renderSandbox(); }
 }
 
-window.handleDropOnWaitingRoom = function(e) {
+window.handleDropOnWaitingRoom = function (e) {
     e.preventDefault();
     if (!draggedStudentId) return;
     const cls = appData.classes.find(c => c.id === currentClassId);
@@ -200,22 +297,24 @@ function toggleLeader(studentId) {
     if (student) { student.isLeader = !student.isLeader; saveData(); renderSandbox(); }
 }
 
-window.createGroup = function() {
+window.createGroup = async function () {
     const cls = appData.classes.find(c => c.id === currentClassId);
     if (!cls) return;
-    const groupName = prompt("请输入小组名称（如：第一组）：", `第${cls.groups.length + 1}组`);
+    const groupName = await customPrompt("请输入小组名称（如：第一组）：", `第${cls.groups.length + 1}组`);
     if (!groupName) return;
-    const seatCount = parseInt(prompt("请输入该小组的座位数量：", "6"));
-    if (isNaN(seatCount) || seatCount <= 0) return alert("请输入有效的座位数量！");
+    const seatCountStr = await customPrompt("请输入该小组的座位数量：", "6");
+    if (!seatCountStr) return;
+    const seatCount = parseInt(seatCountStr);
+    if (isNaN(seatCount) || seatCount <= 0) { alert("请输入有效的座位数量！"); return; }
     cls.groups.push({ id: 'g_' + Date.now().toString(36), name: groupName, seatCount: seatCount });
     saveData(); renderSandbox();
 };
 
-window.handleTxtImport = function(event) {
+window.handleTxtImport = function (event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const names = e.target.result.split(/\r?\n/).map(n => n.trim()).filter(n => n.length > 0);
         if (names.length === 0) return alert('未检测到有效名单，请检查 TXT 文件是否为空。');
         const cls = appData.classes.find(c => c.id === currentClassId);
@@ -226,19 +325,19 @@ window.handleTxtImport = function(event) {
         saveData(); renderSandbox();
     };
     reader.readAsText(file);
-    event.target.value = ''; 
+    event.target.value = '';
 };
 
-window.toggleAddStudentMenu = function() { document.getElementById('addStudentMenu').classList.toggle('hidden-view'); };
-document.addEventListener('click', function(event) {
+window.toggleAddStudentMenu = function () { document.getElementById('addStudentMenu').classList.toggle('hidden-view'); };
+document.addEventListener('click', function (event) {
     const container = document.getElementById('addStudentDropdownContainer');
     const menu = document.getElementById('addStudentMenu');
     if (container && menu && !container.contains(event.target)) menu.classList.add('hidden-view');
 });
 
-window.addSingleStudent = function() {
+window.addSingleStudent = async function () {
     window.toggleAddStudentMenu();
-    const name = prompt("请输入插班生/新学生的姓名：");
+    const name = await customPrompt("请输入插班生/新学生的姓名：");
     if (!name || name.trim() === '') return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     if (!cls) return;
@@ -246,14 +345,14 @@ window.addSingleStudent = function() {
     saveData(); renderSandbox();
 };
 
-window.deleteCurrentStudent = function() {
+window.deleteCurrentStudent = async function () {
     if (!currentMatrixStudentId) return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     const stu = cls.students.find(s => s.id === currentMatrixStudentId);
     if (!stu) return;
-    if (confirm(`⚠️ 危险警告：确定要将学生【${stu.name}】彻底开除吗？\n该操作将永久删除他的所有打卡分数、专属任务以及座位安排！`)) {
+    if (await customConfirm(`⚠️ 危险警告：确定要将学生【${stu.name}】彻底开除吗？\n该操作将永久删除他的所有打卡分数、专属任务以及座位安排！`)) {
         cls.students = cls.students.filter(s => s.id !== currentMatrixStudentId);
-        saveData(); window.closeModal(); 
+        saveData(); window.closeModal();
     }
 };
 
@@ -261,26 +360,35 @@ window.deleteCurrentStudent = function() {
 // 打卡矩阵与设置逻辑 (升级版：深度解耦任务与分组)
 // ==========================================
 
-// 底层中转站 1：获取全局列分组
-function getColGroups() {
-    if (!appData.colGroups) {
-        if (appData.globalCols && appData.globalCols.length > 0) {
-            appData.colGroups = [{ id: 'cg_default', name: '默认进度', cols: [...appData.globalCols] }];
+// [002] 底层中转站 1：获取「班级专属」列分组
+// 修复前：所有班级共用 appData.colGroups（全局一份），是幽灵污染的核心病灶。
+// 修复后：数据存在 cls.colGroups（每个班级各自持有一份），互不干扰。
+// 函数现在需要接收 cls（当前班级对象）作为参数来定位正确的数据存储位置。
+function getColGroups(cls) {
+    if (!cls.colGroups) {
+        // 数据迁移逻辑（一次性）：处理旧版本存储在全局的数据
+        if (appData.colGroups && appData.colGroups.length > 0) {
+            // structuredClone：相当于「复印全套文件」，生成一份与原件毫无关联的独立副本
+            cls.colGroups = structuredClone(appData.colGroups);
+        } else if (appData.globalCols && appData.globalCols.length > 0) {
+            cls.colGroups = [{ id: 'cg_default', name: '默认进度', cols: structuredClone(appData.globalCols) }];
         } else {
-            appData.colGroups = [{ id: 'cg_default', name: '默认进度', cols: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'] }];
+            // 全新班级：直接初始化一套默认列分组
+            cls.colGroups = [{ id: 'cg_default', name: '默认进度', cols: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'] }];
         }
-        delete appData.globalCols; 
         saveData();
     }
-    return appData.colGroups;
+    return cls.colGroups;
 }
 
-// 底层中转站 2：获取特定班级下、特定分组的统一任务 (实现数据无损分离)
+// [003] 底层中转站 2：获取特定班级下、特定分组的统一任务
 function getClassTasks(cls, groupId) {
     if (!cls.groupTasks) {
         cls.groupTasks = {};
         if (cls.tasks && cls.tasks.length > 0) {
-            cls.groupTasks['cg_default'] = [...cls.tasks];
+            // 修复：原来用 [...cls.tasks] 是浅拷贝，像「配了一把钥匙」，
+            // 两边同指一个数组。改用 structuredClone 确保任务数组完全独立。
+            cls.groupTasks['cg_default'] = structuredClone(cls.tasks);
         } else {
             cls.groupTasks['cg_default'] = ['Module 1 单词', 'Module 1 课文', 'Module 2 单词', 'Module 2 课文'];
         }
@@ -305,27 +413,28 @@ function getStudentCustomTasks(stu, groupId) {
     return stu.groupCustomTasks[groupId];
 }
 
-window.openSettings = function() {
+window.openSettings = function () {
     renderSettingsModal();
     document.getElementById('modalOverlay').classList.remove('hidden-view');
     document.getElementById('settingsModal').classList.remove('hidden-view');
 };
 
-window.closeSettings = function() {
+window.closeSettings = function () {
     document.getElementById('modalOverlay').classList.add('hidden-view');
     document.getElementById('settingsModal').classList.add('hidden-view');
     renderSandbox();
 };
 
-// 渲染打卡设置界面 (将任务管理深度融合进每个分组卡片中)
+// [004] 渲染打卡设置界面
 function renderSettingsModal() {
     const cls = appData.classes.find(c => c.id === currentClassId);
     const colsContainer = document.getElementById('settingsColsList');
     colsContainer.innerHTML = '';
-    
-    getColGroups().forEach(group => {
+
+    // 修复：传入 cls，读取该班级自己的 colGroups，而非全局数据
+    getColGroups(cls).forEach(group => {
         const tasks = getClassTasks(cls, group.id);
-        
+
         let groupHtml = `<div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-2 shadow-sm">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
                 <span class="font-bold text-lg text-indigo-700">${group.name}</span>
@@ -338,10 +447,10 @@ function renderSettingsModal() {
                     <button onclick="addColToGroup('${group.id}')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-100/50 px-2 py-1 rounded">+ 添加列</button>
                 </div>
                 <div class="flex flex-wrap gap-2">`;
-        group.cols.forEach(col => { 
-            groupHtml += `<div class="flex items-center bg-white rounded-md px-2 py-1 border border-slate-200 shadow-sm"><span class="text-sm font-medium text-slate-700 mr-2">${col}</span><button onclick="deleteGlobalCol('${group.id}', '${col}')" class="text-slate-400 hover:text-red-500 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>`; 
+        group.cols.forEach(col => {
+            groupHtml += `<div class="flex items-center bg-white rounded-md px-2 py-1 border border-slate-200 shadow-sm"><span class="text-sm font-medium text-slate-700 mr-2">${col}</span><button onclick="deleteGlobalCol('${group.id}', '${col}')" class="text-slate-400 hover:text-red-500 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>`;
         });
-        if(group.cols.length === 0) groupHtml += `<span class="text-xs text-slate-400">暂无列标</span>`;
+        if (group.cols.length === 0) groupHtml += `<span class="text-xs text-slate-400">暂无列标</span>`;
         groupHtml += `</div></div>
 
             <div>
@@ -350,63 +459,71 @@ function renderSettingsModal() {
                     <button onclick="addClassTask('${group.id}')" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-100">+ 添任务</button>
                 </div>
                 <div class="space-y-2">`;
-        tasks.forEach(task => { 
-            groupHtml += `<div class="flex items-center justify-between bg-white border border-slate-200 rounded-md p-2.5 hover:border-emerald-200 transition-colors"><span class="text-sm font-medium text-slate-700">${task}</span><button onclick="deleteClassTask('${group.id}', '${task}')" class="text-xs text-red-500 hover:text-red-700 font-medium">删除</button></div>`; 
+        tasks.forEach(task => {
+            groupHtml += `<div class="flex items-center justify-between bg-white border border-slate-200 rounded-md p-2.5 hover:border-emerald-200 transition-colors"><span class="text-sm font-medium text-slate-700">${task}</span><button onclick="deleteClassTask('${group.id}', '${task}')" class="text-xs text-red-500 hover:text-red-700 font-medium">删除</button></div>`;
         });
-        if(tasks.length === 0) groupHtml += `<span class="text-xs text-slate-400">暂无任务</span>`;
+        if (tasks.length === 0) groupHtml += `<span class="text-xs text-slate-400">暂无任务</span>`;
         groupHtml += `</div></div></div>`;
         colsContainer.innerHTML += groupHtml;
     });
 }
 
-window.addColGroup = function() {
-    const groupName = prompt("请输入新分组名称 (如：U单元、期末复习)：");
+window.addColGroup = async function () {
+    const groupName = await customPrompt("请输入新分组名称 (如：U单元、期末复习)：");
     if (!groupName || groupName.trim() === '') return;
-    getColGroups().push({ id: 'cg_' + Date.now().toString(36), name: groupName.trim(), cols: [] });
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    // 修复：操作当前班级自己的 colGroups
+    getColGroups(cls).push({ id: 'cg_' + Date.now().toString(36), name: groupName.trim(), cols: [] });
     saveData(); renderSettingsModal();
 };
 
-window.addColToGroup = function(groupId) {
-    const newCol = prompt("请输入新的列标名称 (如：U1)：");
+window.addColToGroup = async function (groupId) {
+    const newCol = await customPrompt("请输入新的列标名称 (如：U1)：");
     if (!newCol || newCol.trim() === '') return;
-    const group = getColGroups().find(g => g.id === groupId);
-    if (group.cols.includes(newCol.trim())) return alert("该组内列标已存在！");
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    // 修复：在当前班级自己的 colGroups 里查找分组
+    const group = getColGroups(cls).find(g => g.id === groupId);
+    if (group.cols.includes(newCol.trim())) { alert("该组内列标已存在！"); return; }
     group.cols.push(newCol.trim());
     saveData(); renderSettingsModal();
 };
 
 // 增加任务时，必须指明要加到哪个分组里
-window.addClassTask = function(groupId) {
-    const newTask = prompt("请输入新的班级统一任务名称：");
+window.addClassTask = async function (groupId) {
+    const newTask = await customPrompt("请输入新的班级统一任务名称：");
     if (!newTask || newTask.trim() === '') return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     const tasks = getClassTasks(cls, groupId);
-    if (tasks.includes(newTask.trim())) return alert("任务在该分组内已存在！");
-    tasks.push(newTask.trim()); 
+    if (tasks.includes(newTask.trim())) { alert("任务在该分组内已存在！"); return; }
+    tasks.push(newTask.trim());
     saveData(); renderSettingsModal();
 };
 
-window.deleteColGroup = function(groupId) {
-    const group = getColGroups().find(g => g.id === groupId);
-    if (confirm(`确定删除大分组【${group.name}】及其内部所有列标和任务吗？`)) {
-        appData.colGroups = appData.colGroups.filter(g => g.id !== groupId);
+window.deleteColGroup = async function (groupId) {
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    const group = getColGroups(cls).find(g => g.id === groupId);
+    if (await customConfirm(`确定删除大分组【${group.name}】及其内部所有列标和任务吗？`)) {
+        // 修复：只删除当前班级的分组，不影响其他班级
+        cls.colGroups = cls.colGroups.filter(g => g.id !== groupId);
         saveData(); renderSettingsModal();
     }
 };
 
-window.deleteGlobalCol = function(groupId, colName) {
-    if (confirm(`确定删除列标【${colName}】吗？所有班级将同步移除该列。`)) { 
-        const group = getColGroups().find(g => g.id === groupId);
-        group.cols = group.cols.filter(c => c !== colName); 
-        saveData(); renderSettingsModal(); 
+window.deleteGlobalCol = async function (groupId, colName) {
+    // 修复：「删除列标」现在只影响当前班级，已改为「班级内删除」
+    if (await customConfirm(`确定删除列标【${colName}】吗？（仅影响本班级）`)) {
+        const cls = appData.classes.find(c => c.id === currentClassId);
+        const group = getColGroups(cls).find(g => g.id === groupId);
+        group.cols = group.cols.filter(c => c !== colName);
+        saveData(); renderSettingsModal();
     }
 };
 
-window.deleteClassTask = function(groupId, taskName) {
-    if (confirm(`确定删除任务【${taskName}】吗？`)) { 
-        const cls = appData.classes.find(c => c.id === currentClassId); 
-        cls.groupTasks[groupId] = cls.groupTasks[groupId].filter(t => t !== taskName); 
-        saveData(); renderSettingsModal(); 
+window.deleteClassTask = async function (groupId, taskName) {
+    if (await customConfirm(`确定删除任务【${taskName}】吗？`)) {
+        const cls = appData.classes.find(c => c.id === currentClassId);
+        cls.groupTasks[groupId] = cls.groupTasks[groupId].filter(t => t !== taskName);
+        saveData(); renderSettingsModal();
     }
 };
 
@@ -441,9 +558,10 @@ function renderMatrixTable(cls, stu) {
     const container = document.getElementById('matrixTableContainer');
     container.innerHTML = '';
 
-    getColGroups().forEach(group => {
-        if (group.cols.length === 0) return; 
-        
+    // 修复：渲染矩阵表格时，读取该班级自己的 colGroups
+    getColGroups(cls).forEach(group => {
+        if (group.cols.length === 0) return;
+
         const groupTasks = getClassTasks(cls, group.id);
         const customTasks = getStudentCustomTasks(stu, group.id);
         const allTasks = [...groupTasks, ...customTasks];
@@ -456,18 +574,18 @@ function renderMatrixTable(cls, stu) {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                 </button>
             </th>`;
-        
-        group.cols.forEach(col => { 
-            thead += `<th class="p-3 text-center font-semibold text-slate-600 min-w-[4rem] whitespace-nowrap">${col}</th>`; 
+
+        group.cols.forEach(col => {
+            thead += `<th class="p-3 text-center font-semibold text-slate-600 min-w-[4rem] whitespace-nowrap">${col}</th>`;
         });
         thead += `</tr></thead>`;
-        
+
         // 表体构建
         let tbody = `<tbody>`;
         allTasks.forEach((task, rowIndex) => {
             if (!stu.records[task]) stu.records[task] = {};
             const isCustom = rowIndex >= groupTasks.length;
-            
+
             // 首列：固定宽度，任务名称 + (专属标签) + (悬浮显示的删除按钮)
             tbody += `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
                 <td class="p-3 font-medium text-slate-700 sticky left-0 z-10 bg-white group-hover:bg-slate-50 shadow-[1px_0_0_0_#f1f5f9] w-[160px] min-w-[160px] max-w-[160px] transition-colors">
@@ -479,7 +597,7 @@ function renderMatrixTable(cls, stu) {
                         ${isCustom ? `<button onclick="deleteCustomTask('${group.id}', '${task}')" class="text-slate-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100 shrink-0" title="删除专属任务"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
                     </div>
                 </td>`;
-            
+
             // 星星打卡列
             group.cols.forEach(col => {
                 const val = stu.records[task][col] || 0;
@@ -491,12 +609,12 @@ function renderMatrixTable(cls, stu) {
             });
             tbody += `</tr>`;
         });
-        
-        if(allTasks.length === 0) {
+
+        if (allTasks.length === 0) {
             tbody += `<tr><td colspan="${group.cols.length + 1}" class="p-8 text-center text-sm text-slate-400 bg-white">暂无任务记录</td></tr>`;
         }
         tbody += `</tbody>`;
-        
+
         // 渲染表格容器
         container.innerHTML += `
             <div class="mb-8 bg-white shadow-[0_2px_4px_-1px_rgba(0,0,0,0.05)] rounded-xl border border-slate-200 overflow-hidden relative">
@@ -513,7 +631,7 @@ function renderMatrixTable(cls, stu) {
     document.getElementById('matrixTotalScore').innerText = `${currentScore} 分`;
 }
 
-window.toggleRecord = function(event, task, col) {
+window.toggleRecord = function (event, task, col) {
     const cls = appData.classes.find(c => c.id === currentClassId);
     const stu = cls.students.find(s => s.id === currentMatrixStudentId);
     let val = stu.records[task][col] || 0;
@@ -524,28 +642,28 @@ window.toggleRecord = function(event, task, col) {
 };
 
 // 专属任务也实现了深度隔离
-window.addCustomTask = function(groupId) {
-    const taskName = prompt("请输入该组的专属附加任务名称：");
+window.addCustomTask = async function (groupId) {
+    const taskName = await customPrompt("请输入该组的专属附加任务名称：");
     if (!taskName || taskName.trim() === '') return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     const stu = cls.students.find(s => s.id === currentMatrixStudentId);
     const customTasks = getStudentCustomTasks(stu, groupId);
     const groupTasks = getClassTasks(cls, groupId);
 
-    if (!customTasks.includes(taskName.trim()) && !groupTasks.includes(taskName.trim())) { 
-        customTasks.push(taskName.trim()); saveData(); renderMatrixTable(cls, stu); 
+    if (!customTasks.includes(taskName.trim()) && !groupTasks.includes(taskName.trim())) {
+        customTasks.push(taskName.trim()); saveData(); renderMatrixTable(cls, stu);
     } else { alert("该任务在当前分组中已存在！"); }
 };
 
-window.deleteCustomTask = function(groupId, taskName) {
-    if(!confirm(`确定删除专属任务【${taskName}】及其所有打卡记录吗？`)) return;
+window.deleteCustomTask = async function (groupId, taskName) {
+    if (!(await customConfirm(`确定删除专属任务【${taskName}】及其所有打卡记录吗？`))) return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     const stu = cls.students.find(s => s.id === currentMatrixStudentId);
     stu.groupCustomTasks[groupId] = stu.groupCustomTasks[groupId].filter(t => t !== taskName);
     delete stu.records[taskName]; saveData(); renderMatrixTable(cls, stu);
 };
 
-window.closeModal = function() {
+window.closeModal = function () {
     document.getElementById('modalOverlay').classList.add('hidden-view');
     document.getElementById('matrixModal').classList.add('hidden-view');
     document.getElementById('leaderboardModal').classList.add('hidden-view');
@@ -553,14 +671,14 @@ window.closeModal = function() {
     calculateScores(); renderSandbox();
 };
 
-window.showLeaderboard = function() {
+window.showLeaderboard = function () {
     calculateScores();
     document.getElementById('modalOverlay').classList.remove('hidden-view');
     document.getElementById('leaderboardModal').classList.remove('hidden-view');
     window.switchTab(currentTab);
 };
 
-window.switchTab = function(tab) {
+window.switchTab = function (tab) {
     currentTab = tab;
     const tabPersonal = document.getElementById('tab-personal');
     const tabGroup = document.getElementById('tab-group');
@@ -580,10 +698,10 @@ function renderPersonalLeaderboard() {
     const sortedStudents = [...cls.students].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
     let html = `<div class="divide-y divide-slate-100">`;
     sortedStudents.forEach((stu, index) => {
-        const rankBadge = index < 3 ? `<div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${index===0?'bg-amber-100 text-amber-600':index===1?'bg-slate-200 text-slate-600':'bg-orange-100 text-orange-700'}">${index+1}</div>` : `<div class="w-6 h-6 text-center text-slate-400 font-medium text-sm">${index+1}</div>`;
-        html += `<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"><div class="flex items-center gap-4">${rankBadge}<div class="w-10 h-10 rounded-full border border-slate-200 overflow-hidden shrink-0">${typeof generateAvatarSVG === 'function' ? generateAvatarSVG(stu) : ''}</div><div><h4 class="font-bold text-slate-700 flex items-center gap-2">${stu.name} ${stu.isLeader ? '<svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 9.707l2.147-2.146a1 1 0 011.53.111l1.5 2.25 1.5-2.25a1 1 0 011.53-.111l2.147 2.146a1 1 0 01.196 1.15l-2.071 5.178A2 2 0 0111.938 18H8.062a2 2 0 01-1.854-1.265L4.137 11.5a1 1 0 01.156-1.15z"></path></svg>' : ''}</h4><span class="text-xs text-slate-500">${stu.groupId ? cls.groups.find(g=>g.id===stu.groupId)?.name : '未分组'}</span></div></div><div class="text-lg font-bold text-indigo-600">${stu.totalScore || 0} <span class="text-xs font-normal text-slate-400">分</span></div></div>`;
+        const rankBadge = index < 3 ? `<div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-amber-100 text-amber-600' : index === 1 ? 'bg-slate-200 text-slate-600' : 'bg-orange-100 text-orange-700'}">${index + 1}</div>` : `<div class="w-6 h-6 text-center text-slate-400 font-medium text-sm">${index + 1}</div>`;
+        html += `<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"><div class="flex items-center gap-4">${rankBadge}<div class="w-10 h-10 rounded-full border border-slate-200 overflow-hidden shrink-0">${typeof generateAvatarSVG === 'function' ? generateAvatarSVG(stu) : ''}</div><div><h4 class="font-bold text-slate-700 flex items-center gap-2">${stu.name} ${stu.isLeader ? '<svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 9.707l2.147-2.146a1 1 0 011.53.111l1.5 2.25 1.5-2.25a1 1 0 011.53-.111l2.147 2.146a1 1 0 01.196 1.15l-2.071 5.178A2 2 0 0111.938 18H8.062a2 2 0 01-1.854-1.265L4.137 11.5a1 1 0 01.156-1.15z"></path></svg>' : ''}</h4><span class="text-xs text-slate-500">${stu.groupId ? cls.groups.find(g => g.id === stu.groupId)?.name : '未分组'}</span></div></div><div class="text-lg font-bold text-indigo-600">${stu.totalScore || 0} <span class="text-xs font-normal text-slate-400">分</span></div></div>`;
     });
-    if(sortedStudents.length === 0) html += `<div class="p-8 text-center text-slate-400">暂无数据</div>`;
+    if (sortedStudents.length === 0) html += `<div class="p-8 text-center text-slate-400">暂无数据</div>`;
     html += `</div>`;
     document.getElementById('leaderboardContent').innerHTML = html;
 }
@@ -593,11 +711,91 @@ function renderGroupLeaderboard() {
     const sortedGroups = [...cls.groups].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
     let html = `<div class="divide-y divide-slate-100 p-4 space-y-3">`;
     sortedGroups.forEach((group, index) => {
-        html += `<div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between"><div class="flex items-center gap-4"><div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">${index+1}</div><div><h4 class="font-bold text-slate-800">${group.name}</h4><p class="text-xs text-slate-500">共 ${group.seatCount} 个座位</p></div></div><div class="text-2xl font-black text-amber-500">${group.totalScore || 0} <span class="text-sm font-normal text-slate-400">总分</span></div></div>`;
+        html += `<div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between"><div class="flex items-center gap-4"><div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">${index + 1}</div><div><h4 class="font-bold text-slate-800">${group.name}</h4><p class="text-xs text-slate-500">共 ${group.seatCount} 个座位</p></div></div><div class="text-2xl font-black text-amber-500">${group.totalScore || 0} <span class="text-sm font-normal text-slate-400">总分</span></div></div>`;
     });
-    if(sortedGroups.length === 0) html += `<div class="p-8 text-center text-slate-400">暂无小组数据，请先添加小组</div>`;
+    if (sortedGroups.length === 0) html += `<div class="p-8 text-center text-slate-400">暂无小组数据，请先添加小组</div>`;
     html += `</div>`;
     document.getElementById('leaderboardContent').innerHTML = html;
+}
+
+// ==========================================
+// [005] 跨班级任务模板同步功能
+// 解决了之前「幽灵污染」版本无法实现的需求。
+// 核心安全手段：structuredClone 深拷贝，确保 A 班 B 班数据完全独立，
+// 就像"复印了一份崭新的菜单"，改了 B 班的菜单，A 班的不受影响。
+// ==========================================
+
+// 展示班级选择器弹窗
+window.showClassSyncPicker = function () {
+    const listEl = document.getElementById('classSyncList');
+    listEl.innerHTML = '';
+
+    // 过滤掉当前班级，只显示其他班级作为同步来源
+    const otherClasses = appData.classes.filter(c => c.id !== currentClassId);
+
+    if (otherClasses.length === 0) {
+        // 没有其他班级时，给出友好提示
+        listEl.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+                <svg class="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                <p class="text-sm font-medium">暂无其他班级</p>
+                <p class="text-xs mt-1">请先在大厅创建其他班级</p>
+            </div>`;
+    } else {
+        otherClasses.forEach(cls => {
+            // 统计该班级有多少个分组和任务，方便用户决策
+            const colGroupCount = (cls.colGroups || []).length;
+            const taskCount = Object.values(cls.groupTasks || {}).reduce((sum, arr) => sum + arr.length, 0);
+
+            const card = document.createElement('button');
+            card.className = 'w-full text-left p-4 border border-slate-200 rounded-xl hover:border-teal-400 hover:bg-teal-50/50 transition-all group';
+            card.onclick = () => syncFromClass(cls.id);
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-slate-800 group-hover:text-teal-700">${cls.name}</p>
+                        <p class="text-xs text-slate-400 mt-1">${colGroupCount} 个分组 · ${taskCount} 项任务</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-300 group-hover:text-teal-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>`;
+            listEl.appendChild(card);
+        });
+    }
+
+    document.getElementById('classSyncModal').classList.remove('hidden');
+};
+
+// 关闭班级选择器弹窗
+window.closeClassSyncModal = function () {
+    document.getElementById('classSyncModal').classList.add('hidden');
+};
+
+// 从指定班级同步分组与任务配置（深拷贝，零污染）
+async function syncFromClass(sourceClassId) {
+    const sourceClass = appData.classes.find(c => c.id === sourceClassId);
+    const currentClass = appData.classes.find(c => c.id === currentClassId);
+    if (!sourceClass || !currentClass) return;
+
+    // 关闭选择弹窗，再弹确认框（避免两个弹窗叠加）
+    window.closeClassSyncModal();
+
+    const confirmed = await customConfirm(
+        `确定要将【${sourceClass.name}】的分组与任务配置同步到当前班级吗？\n当前班级的分组和任务将被覆盖，学生打卡记录不受影响。`
+    );
+    if (!confirmed) return;
+
+    // [006] 核心：用 structuredClone 深拷贝，确保数据完全独立
+    // structuredClone 相当于"复印了一份崭新的文件"，
+    // 两份文件从此互不影响，修改一份不会影响另一份。
+    currentClass.colGroups = structuredClone(getColGroups(sourceClass));
+    currentClass.groupTasks = structuredClone(sourceClass.groupTasks || {});
+
+    saveData();
+    renderSettingsModal(); // 刷新设置面板，让用户立刻看到同步结果
 }
 
 window.onload = loadData;
