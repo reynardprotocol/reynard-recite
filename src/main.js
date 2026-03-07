@@ -1,5 +1,5 @@
 import './style.css';
-import { loadDataRaw, saveDataRaw } from './data.js';
+import { loadDataRaw, saveDataRaw, openDataFile, createNewDataFile, clearMemory, getCurrentFileName } from './data.js';
 import { generateAvatarSVG, shootParticles, getStatusVisual } from './utils.js';
 
 // ==========================================
@@ -87,38 +87,88 @@ let draggedStudentId = null;
 let currentMatrixStudentId = null;
 let currentTab = 'personal';
 
-function loadData() { appData = loadDataRaw(); renderLobby(); }
+function loadData() { appData = loadDataRaw(); }
 function saveData() { saveDataRaw(appData); }
 
-window.exportData = function () {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `备份_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`);
-    dlAnchorElem.click();
-    dlAnchorElem.remove();
+// ==========================================
+// [007] 插卡机生命周期 (Card Machine Lifecycle)
+// ==========================================
+
+// 更新顶部的卡带状态指示器
+function updateCardIndicator() {
+    const fileName = getCurrentFileName();
+    const indicator = document.getElementById('activeFileIndicator');
+    const badge = document.getElementById('fileNameBadge');
+    const ejectBtn = document.getElementById('ejectCardBtn');
+
+    if (!indicator) return;
+
+    if (fileName) {
+        badge.textContent = fileName;
+        indicator.classList.remove('hidden');
+        indicator.classList.add('flex');
+        ejectBtn.classList.remove('hidden');
+        ejectBtn.classList.add('flex');
+    } else {
+        indicator.classList.add('hidden');
+        indicator.classList.remove('flex');
+        ejectBtn.classList.add('hidden');
+        ejectBtn.classList.remove('flex');
+    }
+}
+
+// 插入旧卡带
+window.startupWithExisting = async function () {
+    const data = await openDataFile();
+    if (data) {
+        if (!data.classes) { alert('数据格式不正确，缺少班级信息。'); return; }
+        appData = data;
+        updateCardIndicator();
+        window.switchView('lobby');
+    }
 };
 
-window.importData = function (event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        try {
-            const importedData = JSON.parse(e.target.result);
-            if (importedData && importedData.classes) { appData = importedData; saveData(); renderLobby(); alert('数据导入成功！'); }
-            else { alert('数据格式不正确，缺少班级信息。'); }
-        } catch (err) { alert('读取文件失败，请确保是合法的 JSON 文件。'); }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
+// 锻造新卡带
+window.startupWithNew = async function () {
+    const data = await createNewDataFile();
+    if (data) {
+        appData = data;
+        updateCardIndicator();
+        window.switchView('lobby');
+    }
 };
 
+// 拔出卡带（退回启动大厅）
+window.ejectCard = async function () {
+    const confirm = await customConfirm("确定要拔出卡带吗？\n你的所有修改已经安全地自动保存在本地文件中了。");
+    if (!confirm) return;
+
+    clearMemory();
+    appData = { version: "1.0", classes: [] };
+    updateCardIndicator();
+    window.switchView('startup');
+};
+
+// 视图切换调度
 window.switchView = function (viewName) {
+    const viewStartup = document.getElementById('view-startup');
     const viewLobby = document.getElementById('view-lobby');
     const viewSandbox = document.getElementById('view-sandbox');
-    if (viewName === 'lobby') { viewLobby.classList.remove('hidden-view'); viewSandbox.classList.add('hidden-view'); currentClassId = null; renderLobby(); }
-    else if (viewName === 'sandbox') { viewLobby.classList.add('hidden-view'); viewSandbox.classList.remove('hidden-view'); }
+
+    // 先全部隐藏
+    viewStartup.classList.add('hidden-view');
+    viewLobby.classList.add('hidden-view');
+    viewSandbox.classList.add('hidden-view');
+
+    if (viewName === 'startup') {
+        viewStartup.classList.remove('hidden-view');
+    } else if (viewName === 'lobby') {
+        viewLobby.classList.remove('hidden-view');
+        currentClassId = null;
+        renderLobby();
+    } else if (viewName === 'sandbox') {
+        viewSandbox.classList.remove('hidden-view');
+    }
 };
 
 function renderLobby() {
@@ -798,4 +848,9 @@ async function syncFromClass(sourceClassId) {
     renderSettingsModal(); // 刷新设置面板，让用户立刻看到同步结果
 }
 
-window.onload = loadData;
+window.onload = () => {
+    // 强制清理内存，进入插卡机启动页
+    clearMemory();
+    updateCardIndicator();
+    window.switchView('startup');
+};
