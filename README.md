@@ -4,15 +4,34 @@
 
 🌐 **在线访问**：[https://reynardprotocol.github.io/reynard-recite/](https://reynardprotocol.github.io/reynard-recite/)
 
+💾 **离线版**：下载 `dist-local/叶老师的背书室.html` 双击即可使用，无需安装任何软件。
+
 ---
 
-## ✨ 当前功能一览
+## ✨ 功能一览
 
-### 🏫 班级沙盘
+### 🔑 Local First 数据架构
+- **卡带式数据管理**：每份班级数据是一个独立的 `.json` 文件（卡带），插入即用，拔出即走
+- **静默自动保存**：基于 File System Access API，修改后自动写入本地文件，无需手动保存
+- **保护模式降级**：在不支持高级 API 的环境中（如双击打开单文件版）自动切换为传统文件读取 + 手动下载备份
+- **数据完全本地化**：无服务器、无云端、无隐私泄漏风险
+
+### 🏫 班级沙盘（全屏铺开）
 - 班级大厅：创建、重命名、删除班级，查看所有班级卡片
-- 沙盘视图：木纹风格班级座位图，将学生拖入小组桌位
-- 小组管理：自定义小组名称与座位数量
+- 沙盘视图：木纹风格班级座位图，界面铺满全屏，适配大屏幕显示器
 - 学生管理：手动添加、TXT 批量导入、拖拽排座、设置组长
+
+### 👥 小组管理
+- 自定义小组名称与座位数量
+- **齿轮设置**：点击组名旁的 ⚙️ 可重命名、调整座位数
+- **安全删除**：拆除小组时，组内学生完好退回待机室
+- **拖拽排序**：通过 `⋮⋮` 手柄拖动整个桌子交换位置
+- **待机室智能折叠**：无待分组学生时自动收起，有学生退回时自动展开
+
+### 🎨 莫兰迪色系头像
+- 程序化 SVG 捏脸引擎，低饱和高级感配色
+- 旧数据头像热迁移：加载老卡带时自动固化历史外观
+- 点击弹窗内头像可随机换肤
 
 ### 📊 多维打卡矩阵
 - 支持在同一班级内创建多个独立打卡分组（如"M系列"、"U单元"）
@@ -20,6 +39,7 @@
 - 打卡状态：空 → 半星 ☆ → 满星 ★ → 完成 ✔
 - 粒子特效：打卡时触发彩色粒子动画
 - 专属任务：每位学生可追加个人附加任务
+- 大屏优化：面板占屏幕 2/3 宽度
 
 ### 📋 班级设置
 - 新建大分组，添加列标和学习任务
@@ -36,9 +56,11 @@
 | 技术 | 用途 |
 |---|---|
 | Vite | 构建工具与开发服务器 |
+| vite-plugin-singlefile | 单 HTML 文件打包（离线版） |
 | 原生 ES6 JavaScript | 核心业务逻辑 |
 | Tailwind CSS v3 | 样式框架 |
-| LocalStorage | 本地数据持久化（无服务器） |
+| File System Access API | 本地文件静默读写（卡带系统核心） |
+| LocalStorage | 内存缓存层 |
 | GitHub Actions | CI/CD 自动部署到 GitHub Pages |
 
 ---
@@ -52,8 +74,11 @@ npm install
 # 启动开发服务器
 npm run dev
 
-# 构建生产版本
+# 构建生产版本（GitHub Pages）
 npm run build
+
+# 构建单文件离线版（双击即用）
+npm run build:local
 ```
 
 ---
@@ -63,22 +88,17 @@ npm run build
 ```
 reynard-recite/
 ├── index.html              # 页面骨架与所有 DOM 结构
-├── vite.config.js          # Vite 构建配置（含 GitHub Pages base 路径）
+├── vite.config.js          # Vite 构建配置（含 standalone 单文件模式）
 ├── src/
 │   ├── main.js             # 核心业务逻辑、渲染函数、事件处理
-│   ├── data.js             # LocalStorage 读写封装
-│   ├── utils.js            # 工具库（程序化 SVG 头像、粒子特效、星级视觉）
+│   ├── data.js             # 卡带系统（文件读写、降级方案、清除内存）
+│   ├── utils.js            # 工具库（莫兰迪色 SVG 头像、粒子特效、星级视觉）
 │   └── style.css           # Tailwind 基础样式 + 自定义动画
+├── dist-local/             # 单文件离线版输出目录
 ├── public/                 # 静态资源目录
 └── .github/workflows/
     └── deploy.yml          # GitHub Actions 自动部署工作流
 ```
-
----
-
-## 🗺️ 后续规划
-
-查看 [Recitation-Sandbox-Memory.md](./Recitation-Sandbox-Memory.md) 了解详细规划与技术决策记录。
 
 ---
 
