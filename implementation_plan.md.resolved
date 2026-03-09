@@ -1,0 +1,35 @@
+# 🚀 功能升级计划：沙盘全景、高级感头像与精细分组管理
+
+## 1. 界面全屏铺开 (Full Screen Layout)
+**目标**：打破原有的居中最大宽度限制，让应用在宽屏显示器上更显大气。
+*   **改动范围**：[index.html](file:///c:/Users/wwy13/Documents/reynard-recite/index.html)。
+*   **具体实施**：
+    *   移除包裹着顶栏 (`<header>`) 和主内容区 (`<main>`) 的 `max-w-7xl mx-auto` 的 Tailwind 类名。
+    *   保持两侧的基础 padding (`px-4 sm:px-6`)，确保内容不会紧贴着屏幕硬件边缘，但会在中间完全展开。无论在大厅还是在沙盘中，背景和木板容器都可以向两侧延展。
+
+## 2. 莫兰迪色系焕新与头像换位 (Avatar Upgrade)
+**目标**：提升学生头像的高级感（低饱和），允许用户手动刷新不满意的头像，并且**绝对保留现存老头像的历史外观**。
+*   **改动范围**：[src/utils.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/utils.js), [src/main.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js), [src/data.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/data.js)。
+*   **具体实施**：
+    1.  **历史兼容机制 (Migration)**：在程序启动（或加载班级数据）时，静默遍历所有现存学生。如果该学生对象里还没有固定的 `.avatar` 字段，我们使用*旧的公式*实时计算出他的颜色，并永久地把色值写入 `student.avatar` 对象里再保存。这就把过去“算出来的外观”变成了“固定的属性”。
+    2.  **新色系注入**：在 [utils.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/utils.js) 彻底重写 `AvatarConfig`，采用高级的莫兰迪色系（例如雾霾蓝、灰绿、奶茶色、豆沙粉）。未来新导入的学生，将从新色系里随机抽取属性并固定保存。
+    3.  **更换交互**：在沙盘中点击学生打开详情弹窗后，左上角的大头像 SVG 增加 `cursor-pointer` 和 `hover` 放大动效。
+    4.  点击头像触发 `window.customConfirm`：“确定要改变该学生的外貌吗？”
+    5.  确认后，从新的莫兰迪库里给该学生抽取一套全新的 `student.avatar`，触发 [saveData()](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#91-92) 并重新渲染本页面和沙盘。
+
+## 3. 分组设置与安全删除 (Group Settings & Safe Deletion)
+**目标**：允许导师更灵活地针对现有课桌进行重命名、座位数扩充和移除操作。
+*   **改动范围**：[index.html](file:///c:/Users/wwy13/Documents/reynard-recite/index.html), [src/main.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js)。
+*   **具体实施**：
+    1.  **UI 植入**：木桌 (`div.wood-desk`) 的标题行 (`<h4>`) 改为 flex 布局，在组名最右侧增加一个小巧的 `⚙️` 齿轮图标。
+    2.  **设置模态框**：在 HTML 里新增一个隐藏的 `#groupSettingsModal`。点击齿轮后将当前分组的数据填入弹窗。弹窗提供修改“分组名称”和“座位数量”的输入框，并在左下角/底部提供一个显眼的红色【删除分组】按钮。
+    3.  **安全删除逻辑**：一旦点击删除并二次确认，我们并不删除学生数据：系统会遍历该组的所有在座学生，将其 `groupId` 和 `seatIndex` 设为空（这会将他们遣返回界面的右上角待机室）。然后再把该分组对象从 `appData.classes[x].groups` 数组中移除，最后重绘界面即可。
+
+## 4. 分组整体拖拽排序 (Group Drag & Drop)
+**目标**：让桌子本身也像人物一样可以自由拖拽换位。
+*   **改动范围**：[src/main.js](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js)。
+*   **具体实施**：
+    1.  **设立手柄**：在木桌标题的最左侧，加入浅色的点阵手柄图标 `⋮⋮`。为了避免误触，只有鼠标放在这个手柄上按下时，整个桌子组件的 `draggable` 属性才会被激活为 `true`。
+    2.  **拖拽监听**：给 [board](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#724-730)（分组的容器对象）注册 [ondragstart](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#292-293)。拖拽携带的数据是该分组的内部 ID。
+    3.  **放置监听**：给每个分组容器也注册 `ondragover` 和 [ondrop](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#262-263)。当某个组被拖动投放到另一个组上/间隙中时，计算索引，使用 `Array.splice` 将这块桌子在数组中的位置挪动。
+    4.  **落子生根**：数组顺序调整完后，调用 [saveData()](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#91-92)，接着一把 [renderSandbox()](file:///c:/Users/wwy13/Documents/reynard-recite/src/main.js#239-280)，界面位置瞬间重排。

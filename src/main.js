@@ -1,6 +1,6 @@
 import './style.css';
 import { loadDataRaw, saveDataRaw, openDataFile, createNewDataFile, clearMemory, getCurrentFileName } from './data.js';
-import { generateAvatarSVG, shootParticles, getStatusVisual } from './utils.js';
+import { generateAvatarSVG, shootParticles, getStatusVisual, generateRandomAvatar, calculateOldAvatarProps } from './utils.js';
 
 // ==========================================
 // 自定义弹窗工具函数（替代被浏览器拦截的 prompt / confirm）
@@ -84,6 +84,7 @@ function customConfirm(message) {
 let appData = { version: "1.0", classes: [] };
 let currentClassId = null;
 let draggedStudentId = null;
+let draggedGroupId = null;
 let currentMatrixStudentId = null;
 let currentTab = 'personal';
 
@@ -122,6 +123,8 @@ window.startupWithExisting = async function () {
     const data = await openDataFile();
     if (data) {
         if (!data.classes) { alert('数据格式不正确，缺少班级信息。'); return; }
+        // [热迁移] 首次加载老数据时，把以前"算出来的头像"固化成"存下来的属性"
+        migrateOldAvatars(data);
         appData = data;
         updateCardIndicator();
         window.switchView('lobby');
@@ -137,6 +140,25 @@ window.startupWithNew = async function () {
         window.switchView('lobby');
     }
 };
+
+// [009] 旧头像热迁移器
+// 遍历所有学生，如果身上没有 .avatar 固定属性，就用旧算法算出来并永久保存
+function migrateOldAvatars(data) {
+    let migrated = false;
+    if (data && data.classes) {
+        data.classes.forEach(cls => {
+            if (cls.students) {
+                cls.students.forEach(stu => {
+                    if (!stu.avatar) {
+                        stu.avatar = calculateOldAvatarProps(stu);
+                        migrated = true;
+                    }
+                });
+            }
+        });
+    }
+    if (migrated) saveDataRaw(data);
+}
 
 // 拔出卡带（退回启动大厅）
 window.ejectCard = async function () {
@@ -246,10 +268,38 @@ function renderSandbox() {
 
     cls.groups.forEach(group => {
         const groupEl = document.createElement('div');
-        groupEl.className = 'wood-desk p-6 rounded-xl flex flex-col items-center min-w-[200px] transition-transform';
-        const titleEl = document.createElement('h4');
-        titleEl.className = 'text-sm font-bold text-[#5a3a22] mb-4 border-b-2 border-[#8b5a2b]/30 pb-1 z-10';
-        titleEl.innerText = group.name;
+        groupEl.className = 'wood-desk p-6 rounded-xl flex flex-col items-center min-w-[200px] transition-transform relative';
+        // 使整张桌子能接收拖放事件
+        groupEl.ondragover = window.handleGroupDragOver;
+        groupEl.ondrop = (e) => window.handleGroupDrop(e, group.id);
+
+        // 标题行：拖放手柄 + 组名 + 齿轮按钮
+        const titleEl = document.createElement('div');
+        titleEl.className = 'flex items-center justify-between w-full mb-4 border-b-2 border-[#8b5a2b]/30 pb-1 z-10';
+
+        // 拖放手柄 ❘❘
+        const handleEl = document.createElement('div');
+        handleEl.className = 'cursor-move text-[#a87240] hover:text-[#5a3a22] flex items-center justify-center p-1 mr-2 opacity-50 hover:opacity-100 transition-opacity';
+        handleEl.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>';
+        handleEl.draggable = true;
+        handleEl.ondragstart = (e) => window.handleGroupDragStart(e, group.id);
+        handleEl.ondragend = window.handleGroupDragEnd;
+
+        // 组名文字
+        const nameEl = document.createElement('h4');
+        nameEl.className = 'text-sm font-bold text-[#5a3a22] flex-1 text-center';
+        nameEl.innerText = group.name;
+
+        // 齿轮设置按钮
+        const settingsBtn = document.createElement('button');
+        settingsBtn.className = 'text-[#a87240] hover:text-[#5a3a22] p-1 ml-2 transition-colors';
+        settingsBtn.title = '设置';
+        settingsBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>';
+        settingsBtn.onclick = () => window.openGroupSettingsModal(group.id);
+
+        titleEl.appendChild(handleEl);
+        titleEl.appendChild(nameEl);
+        titleEl.appendChild(settingsBtn);
         groupEl.appendChild(titleEl);
 
         const seatsContainer = document.createElement('div');
@@ -360,6 +410,103 @@ window.createGroup = async function () {
     saveData(); renderSandbox();
 };
 
+// ==========================================
+// 分组高级设置：重命名、改座位数、安全删除、拖放排序
+// ==========================================
+
+// [011] 打开分组设置弹窗
+window.openGroupSettingsModal = function (groupId) {
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    const group = cls.groups.find(g => g.id === groupId);
+    if (!group) return;
+    document.getElementById('gsGroupId').value = group.id;
+    document.getElementById('gsGroupName').value = group.name;
+    document.getElementById('gsSeatCount').value = group.seatCount;
+    document.getElementById('modalOverlay').classList.remove('hidden-view');
+    document.getElementById('groupSettingsModal').classList.remove('hidden-view');
+};
+
+// 关闭分组设置弹窗
+window.closeGroupSettingsModal = function () {
+    document.getElementById('modalOverlay').classList.add('hidden-view');
+    document.getElementById('groupSettingsModal').classList.add('hidden-view');
+};
+
+// [012] 保存分组设置
+window.saveGroupSettings = function () {
+    const groupId = document.getElementById('gsGroupId').value;
+    const name = document.getElementById('gsGroupName').value.trim();
+    const seatCount = parseInt(document.getElementById('gsSeatCount').value);
+    if (!name) { alert("分组名称不能为空！"); return; }
+    if (isNaN(seatCount) || seatCount < 1) { alert("座位数必须至少为1！"); return; }
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    if (!cls) return;
+    const group = cls.groups.find(g => g.id === groupId);
+    if (group) {
+        group.name = name;
+        group.seatCount = seatCount;
+        // 如果座位数变少，超界的学生退回待机室
+        cls.students.forEach(stu => {
+            if (stu.groupId === group.id && stu.seatIndex >= seatCount) {
+                stu.groupId = null;
+                stu.seatIndex = null;
+            }
+        });
+        saveData(); renderSandbox();
+        window.closeGroupSettingsModal();
+    }
+};
+
+// [013] 安全删除分组：学生退回待机室
+window.deleteGroup = async function () {
+    const groupId = document.getElementById('gsGroupId').value;
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    if (!cls) return;
+    const group = cls.groups.find(g => g.id === groupId);
+    if (!group) return;
+    if (await customConfirm(`确定要将【${group.name}】拆除吗？\n拆除后该组所有学生都会完好无损地退回【待机室】。`)) {
+        cls.students.forEach(stu => {
+            if (stu.groupId === group.id) { stu.groupId = null; stu.seatIndex = null; }
+        });
+        cls.groups = cls.groups.filter(g => g.id !== group.id);
+        saveData(); renderSandbox();
+        window.closeGroupSettingsModal();
+    }
+};
+
+// [014] 分组拖放排序
+window.handleGroupDragStart = function (e, groupId) {
+    draggedGroupId = groupId;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => {
+        const desk = e.target.closest('.wood-desk');
+        if (desk) desk.classList.add('opacity-40');
+    }, 0);
+};
+window.handleGroupDragEnd = function (e) {
+    const desk = e.target.closest('.wood-desk');
+    if (desk) desk.classList.remove('opacity-40');
+    draggedGroupId = null;
+};
+window.handleGroupDragOver = function (e) {
+    if (draggedGroupId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+};
+window.handleGroupDrop = function (e, targetGroupId) {
+    if (!draggedGroupId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggedGroupId === targetGroupId) return;
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    if (!cls) return;
+    const fromIndex = cls.groups.findIndex(g => g.id === draggedGroupId);
+    const toIndex = cls.groups.findIndex(g => g.id === targetGroupId);
+    if (fromIndex > -1 && toIndex > -1) {
+        const [movedGroup] = cls.groups.splice(fromIndex, 1);
+        cls.groups.splice(toIndex, 0, movedGroup);
+        saveData(); renderSandbox();
+    }
+};
+
 window.handleTxtImport = function (event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -369,8 +516,17 @@ window.handleTxtImport = function (event) {
         if (names.length === 0) return alert('未检测到有效名单，请检查 TXT 文件是否为空。');
         const cls = appData.classes.find(c => c.id === currentClassId);
         if (!cls) return;
+        let nextIndex = cls.students.length > 0 ? Math.max(...cls.students.map(s => s.importIndex || 0)) + 1 : 0;
         names.forEach((name, index) => {
-            cls.students.push({ id: 's_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5), name: name, groupId: null, isLeader: false, importIndex: index, records: {} });
+            cls.students.push({
+                id: 's_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                name: name,
+                groupId: null,
+                isLeader: false,
+                importIndex: nextIndex + index,
+                records: {},
+                avatar: generateRandomAvatar() // 新导入学生自动穿上莫兰迪色系
+            });
         });
         saveData(); renderSandbox();
     };
@@ -391,7 +547,16 @@ window.addSingleStudent = async function () {
     if (!name || name.trim() === '') return;
     const cls = appData.classes.find(c => c.id === currentClassId);
     if (!cls) return;
-    cls.students.push({ id: 's_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5), name: name.trim(), groupId: null, isLeader: false, importIndex: cls.students.length, records: {} });
+    let nextIndex = cls.students.length > 0 ? Math.max(...cls.students.map(s => s.importIndex || 0)) + 1 : 0;
+    cls.students.push({
+        id: 's_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+        name: name.trim(),
+        groupId: null,
+        isLeader: false,
+        importIndex: nextIndex,
+        records: {},
+        avatar: generateRandomAvatar() // 插班生自动穿上莫兰迪色系
+    });
     saveData(); renderSandbox();
 };
 
@@ -601,6 +766,22 @@ function openMatrix(studentId) {
     document.getElementById('modalOverlay').classList.remove('hidden-view');
     document.getElementById('matrixModal').classList.remove('hidden-view');
 }
+
+// [010] 换肤函数：点击头像后随机更换造型
+window.changeStudentAvatar = async function () {
+    if (!currentMatrixStudentId) return;
+    const cls = appData.classes.find(c => c.id === currentClassId);
+    if (!cls) return;
+    const stu = cls.students.find(s => s.id === currentMatrixStudentId);
+    if (!stu) return;
+
+    if (await customConfirm(`确定要为学生【${stu.name}】随机生成一套新颜色的头像吗？`)) {
+        stu.avatar = generateRandomAvatar();
+        saveData();
+        document.getElementById('matrixAvatar').innerHTML = generateAvatarSVG(stu);
+        renderSandbox();
+    }
+};
 
 // 渲染多张彻底隔离、支持独立滑动与首列冻结的打卡表格
 // 渲染多张彻底隔离、支持独立滑动与首列冻结的打卡表格 (极致优化版)
