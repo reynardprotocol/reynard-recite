@@ -174,20 +174,32 @@
                 </div>
             </div>
 
-            <div class="flex-1 relative w-full h-full p-6 pt-20 overflow-y-auto wood-floor" id="mapArea">
-                <div class="mb-6"><span id="currentClassNameDisplay"
-                        class="text-2xl font-bold text-slate-800 drop-shadow-sm"></span></div>
-                <div id="groupsContainer" class="flex flex-wrap gap-10 items-start"></div>
+            <div class="flex-1 relative w-full h-full p-8 pt-20 overflow-y-auto wood-floor" id="mapArea">
+                <div class="mb-8"><span id="currentClassNameDisplay"
+                        class="text-3xl font-bold text-slate-800 drop-shadow-sm"></span></div>
+                <div id="groupsContainer" class="flex flex-wrap gap-12 items-start"></div>
             </div>
 
-            <div class="h-56 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex flex-col z-10"
-                ondragover="handleDragOver(event)" ondrop="handleDropOnWaitingRoom(event)">
-                <div class="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 class="text-sm font-bold text-slate-700">未分组学生 (拖拽回此处可取消座位)</h3>
-                    <span class="text-xs font-medium text-indigo-700 bg-indigo-100 px-3 py-1 rounded-full"
+            <div id="waitingRoomWrapper"
+                class="bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex flex-col z-10 transition-all duration-300">
+                <div class="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 cursor-pointer"
+                    onclick="toggleWaitingRoom()">
+                    <h3 class="text-base font-bold text-slate-700 flex items-center gap-2">
+                        <svg id="waitingRoomChevron" class="w-5 h-5 transition-transform duration-200" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                        未分组学生 (拖拽回此处可取消座位)
+                    </h3>
+                    <span class="text-sm font-medium text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-full"
                         id="waitingCount">0 人</span>
                 </div>
-                <div class="flex-1 overflow-y-auto p-6 flex flex-wrap gap-4 content-start" id="waitingRoom"></div>
+                <div id="waitingRoomBody" class="overflow-hidden transition-all duration-300"
+                    ondragover="handleDragOver(event)" ondrop="handleDropOnWaitingRoom(event)">
+                    <div class="overflow-y-auto p-6 flex flex-wrap gap-5 content-start" id="waitingRoom"
+                        style="max-height: 240px;"></div>
+                </div>
             </div>
         </div>
 

@@ -268,33 +268,33 @@ function renderSandbox() {
 
     cls.groups.forEach(group => {
         const groupEl = document.createElement('div');
-        groupEl.className = 'wood-desk p-6 rounded-xl flex flex-col items-center min-w-[200px] transition-transform relative';
+        groupEl.className = 'wood-desk p-8 rounded-xl flex flex-col items-center min-w-[260px] transition-transform relative';
         // 使整张桌子能接收拖放事件
         groupEl.ondragover = window.handleGroupDragOver;
         groupEl.ondrop = (e) => window.handleGroupDrop(e, group.id);
 
         // 标题行：拖放手柄 + 组名 + 齿轮按钮
         const titleEl = document.createElement('div');
-        titleEl.className = 'flex items-center justify-between w-full mb-4 border-b-2 border-[#8b5a2b]/30 pb-1 z-10';
+        titleEl.className = 'flex items-center justify-between w-full mb-5 border-b-2 border-[#8b5a2b]/30 pb-2 z-10';
 
         // 拖放手柄 ❘❘
         const handleEl = document.createElement('div');
         handleEl.className = 'cursor-move text-[#a87240] hover:text-[#5a3a22] flex items-center justify-center p-1 mr-2 opacity-50 hover:opacity-100 transition-opacity';
-        handleEl.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>';
+        handleEl.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>';
         handleEl.draggable = true;
         handleEl.ondragstart = (e) => window.handleGroupDragStart(e, group.id);
         handleEl.ondragend = window.handleGroupDragEnd;
 
         // 组名文字
         const nameEl = document.createElement('h4');
-        nameEl.className = 'text-sm font-bold text-[#5a3a22] flex-1 text-center';
+        nameEl.className = 'text-base font-bold text-[#5a3a22] flex-1 text-center';
         nameEl.innerText = group.name;
 
         // 齿轮设置按钮
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'text-[#a87240] hover:text-[#5a3a22] p-1 ml-2 transition-colors';
         settingsBtn.title = '设置';
-        settingsBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>';
+        settingsBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>';
         settingsBtn.onclick = () => window.openGroupSettingsModal(group.id);
 
         titleEl.appendChild(handleEl);
@@ -303,11 +303,11 @@ function renderSandbox() {
         groupEl.appendChild(titleEl);
 
         const seatsContainer = document.createElement('div');
-        seatsContainer.className = 'flex flex-wrap gap-4 justify-center max-w-[300px] z-10 relative';
+        seatsContainer.className = 'flex flex-wrap gap-5 justify-center max-w-[400px] z-10 relative';
 
         for (let i = 0; i < group.seatCount; i++) {
             const seatEl = document.createElement('div');
-            seatEl.className = 'w-14 h-14 rounded-lg flex items-center justify-center border-2 border-dashed border-[#a87240] bg-[#fcf6f0] relative transition-colors hover:bg-[#f1dfce] shadow-inner';
+            seatEl.className = 'w-[4.5rem] h-[4.5rem] rounded-lg flex items-center justify-center border-2 border-dashed border-[#a87240] bg-[#fcf6f0] relative transition-colors hover:bg-[#f1dfce] shadow-inner';
             seatEl.ondragover = window.handleDragOver;
             seatEl.ondrop = (e) => handleDropOnSeat(e, group.id, i);
 
@@ -322,11 +322,40 @@ function renderSandbox() {
     const unassignedStudents = cls.students.filter(s => !s.groupId);
     document.getElementById('waitingCount').innerText = `${unassignedStudents.length} 人`;
     if (unassignedStudents.length === 0 && cls.students.length === 0) {
-        waitingRoom.innerHTML = '<div class="text-sm text-slate-400 w-full text-center mt-4">暂无学生，请点击右上角导入名单</div>';
+        waitingRoom.innerHTML = '<div class="text-base text-slate-400 w-full text-center mt-4">暂无学生，请点击右上角导入名单</div>';
     } else {
         unassignedStudents.forEach((stu) => { waitingRoom.appendChild(createStudentAvatar(stu)); });
     }
+
+    // 待机室自动折叠逻辑：当没有未分组学生时自动收起
+    const body = document.getElementById('waitingRoomBody');
+    const chevron = document.getElementById('waitingRoomChevron');
+    if (unassignedStudents.length === 0) {
+        body.style.maxHeight = '0';
+        chevron.style.transform = 'rotate(-90deg)';
+        waitingRoomExpanded = false;
+    } else if (!waitingRoomExpanded && unassignedStudents.length > 0) {
+        // 如果有新学生被退回待机室，自动展开
+        body.style.maxHeight = '280px';
+        chevron.style.transform = 'rotate(0deg)';
+        waitingRoomExpanded = true;
+    }
 }
+
+// [015] 待机室折叠/展开逻辑
+let waitingRoomExpanded = true;
+window.toggleWaitingRoom = function () {
+    const body = document.getElementById('waitingRoomBody');
+    const chevron = document.getElementById('waitingRoomChevron');
+    waitingRoomExpanded = !waitingRoomExpanded;
+    if (waitingRoomExpanded) {
+        body.style.maxHeight = '280px';
+        chevron.style.transform = 'rotate(0deg)';
+    } else {
+        body.style.maxHeight = '0';
+        chevron.style.transform = 'rotate(-90deg)';
+    }
+};
 
 function createStudentAvatar(stu) {
     let score = 0;
@@ -353,13 +382,13 @@ function createStudentAvatar(stu) {
         toggleLeader(stu.id);
     };
 
-    let crownHtml = stu.isLeader ? `<svg class="w-5 h-5 text-amber-500 absolute -top-4 left-1/2 transform -translate-x-1/2 drop-shadow-md z-30" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 9.707l2.147-2.146a1 1 0 011.53.111l1.5 2.25 1.5-2.25a1 1 0 011.53-.111l2.147 2.146a1 1 0 01.196 1.15l-2.071 5.178A2 2 0 0111.938 18H8.062a2 2 0 01-1.854-1.265L4.137 11.5a1 1 0 01.156-1.15z"></path></svg>` : '';
+    let crownHtml = stu.isLeader ? `<svg class="w-6 h-6 text-amber-500 absolute -top-5 left-1/2 transform -translate-x-1/2 drop-shadow-md z-30" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 9.707l2.147-2.146a1 1 0 011.53.111l1.5 2.25 1.5-2.25a1 1 0 011.53-.111l2.147 2.146a1 1 0 01.196 1.15l-2.071 5.178A2 2 0 0111.938 18H8.062a2 2 0 01-1.854-1.265L4.137 11.5a1 1 0 01.156-1.15z"></path></svg>` : '';
     const avatarImg = document.createElement('div');
-    avatarImg.className = `w-12 h-12 rounded-full overflow-hidden bg-white shadow-sm group-hover:border-indigo-400 group-hover:shadow-md transition-all relative ${borderClass}`;
-    avatarImg.innerHTML = typeof generateAvatarSVG === 'function' ? generateAvatarSVG(stu) : `<div class="w-full h-full flex items-center justify-center text-xs">${stu.name}</div>`;
+    avatarImg.className = `w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm group-hover:border-indigo-400 group-hover:shadow-md transition-all relative ${borderClass}`;
+    avatarImg.innerHTML = typeof generateAvatarSVG === 'function' ? generateAvatarSVG(stu) : `<div class="w-full h-full flex items-center justify-center text-sm">${stu.name}</div>`;
 
     const nameLabel = document.createElement('span');
-    nameLabel.className = `text-xs font-medium px-2 py-0.5 rounded-full transition-colors max-w-[4rem] truncate text-center ${stu.isLeader ? 'bg-amber-100 text-amber-700' : 'bg-[#fcf6f0] border border-[#dca06b]/50 text-[#8b5a2b] group-hover:bg-indigo-50 group-hover:text-indigo-700'}`;
+    nameLabel.className = `text-sm font-medium px-2 py-0.5 rounded-full transition-colors max-w-[5rem] truncate text-center ${stu.isLeader ? 'bg-amber-100 text-amber-700' : 'bg-[#fcf6f0] border border-[#dca06b]/50 text-[#8b5a2b] group-hover:bg-indigo-50 group-hover:text-indigo-700'}`;
     nameLabel.innerText = stu.name;
 
     avatarContainer.innerHTML = crownHtml;
